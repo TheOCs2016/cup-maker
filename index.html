@@ -64,7 +64,8 @@
                 'award': <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>,
                 'chevron-up': <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>,
                 'chevron-down': <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>,
-                'refresh-cw': <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
+                'refresh-cw': <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>,
+                'trash': <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
             };
             return (
                 <span className={`inline-flex items-center justify-center ${className || ''}`} style={{ width: '1em', height: '1em' }}>
@@ -73,17 +74,26 @@
             );
         };
 
+        const isPlaceholder = (name) => {
+            if (!name || typeof name !== 'string') return true;
+            return name === 'TBD' || 
+                   name.includes('Grp ') || 
+                   name.includes(' 1st') || 
+                   name.includes(' 2nd') || 
+                   name.includes(' 3rd') || 
+                   name.startsWith('Win ') || 
+                   name.startsWith('Loser ');
+        };
+
         const getFlagUrl = (teamName) => {
-            if (!teamName || typeof teamName !== 'string') return "";
-            if (teamName === 'TBD' || teamName.includes('Grp') || teamName.includes('Best')) return "";
+            if (isPlaceholder(teamName)) return "";
             const code = TEAM_CODES[teamName];
             if (code) return `https://flagcdn.com/w40/${code.toLowerCase()}.png`;
             return `https://placehold.co/40x40/1e293b/ffffff?text=${encodeURIComponent(teamName.trim().substring(0, 1).toUpperCase() || 'X')}`;
         };
 
         const getAbbr = (teamName) => {
-            if (!teamName || typeof teamName !== 'string') return "";
-            if (teamName === 'TBD' || teamName.includes('Grp') || teamName.includes('Best')) return teamName;
+            if (isPlaceholder(teamName)) return teamName;
             const mapping = {
                 "Afghanistan": "AFG", "Albania": "ALB", "Algeria": "ALG", "Andorra": "AND", "Angola": "ANG",
                 "Argentina": "ARG", "Armenia": "ARM", "Australia": "AUS", "Austria": "AUT", "Azerbaijan": "AZE",
@@ -201,10 +211,10 @@
                 if (m) { m.homeTeam = home || 'TBD'; m.awayTeam = away || 'TBD'; }
             };
 
-            const getTeam = (grpIndex, posIndex) => {
-                if (grpIndex >= allStandings.length) return 'TBD';
+            const getTeamByGrp = (grpIndex, posIndex) => {
+                if (grpIndex >= allStandings.length) return `${posIndex === 0 ? '1st' : posIndex === 1 ? '2nd' : '3rd'} Grp ${String.fromCharCode(65 + grpIndex)}`;
                 const st = allStandings[grpIndex].standings;
-                return (st.length > posIndex && st[posIndex].p > 0) ? st[posIndex].team : `TBD`;
+                return (st.length > posIndex && st[posIndex].p > 0) ? st[posIndex].team : `${posIndex === 0 ? '1st' : posIndex === 1 ? '2nd' : '3rd'} Grp ${String.fromCharCode(65 + grpIndex)}`;
             };
 
             let allFirsts = [];
@@ -222,46 +232,63 @@
             allSeconds.sort(sortFn);
             allThirds.sort(sortFn);
             
-            const getRankedTeam = (arr, index) => (arr && arr.length > index && arr[index].team) ? arr[index].team : 'TBD';
+            const getRanked = (arr, index, label) => (arr[index] && arr[index].p > 0) ? arr[index].team : `${index + 1}${['st','nd','rd'][index] || 'th'} ${label}`;
+
+            const scatter16 = [1, 16, 9, 8, 5, 12, 13, 4, 3, 14, 11, 6, 7, 10, 15, 2];
+            const scatter8 = [1, 8, 5, 4, 3, 6, 7, 2];
+            const scatter4 = [1, 4, 3, 2];
 
             if (numGroups === 2) {
-                updateInitial('SF-1', getTeam(0, 0), getTeam(1, 1));
-                updateInitial('SF-2', getTeam(1, 0), getTeam(0, 1));
+                updateInitial('SF-1', getTeamByGrp(0, 0), getTeamByGrp(1, 1));
+                updateInitial('SF-2', getTeamByGrp(1, 0), getTeamByGrp(0, 1));
             } else if (numGroups === 3) {
-                updateInitial('QF-1', getTeam(0, 0), allThirds[1]?.team || 'TBD');
-                updateInitial('QF-2', getTeam(1, 0), allThirds[0]?.team || 'TBD');
-                updateInitial('QF-3', getTeam(2, 0), getTeam(0, 1));
-                updateInitial('QF-4', getTeam(1, 1), getTeam(2, 1));
+                let m4 = [
+                    { h: getTeamByGrp(0, 0), a: getRanked(allThirds, 1, '3rd') },
+                    { h: getTeamByGrp(1, 0), a: getRanked(allThirds, 0, '3rd') },
+                    { h: getTeamByGrp(2, 0), a: getTeamByGrp(0, 1) },
+                    { h: getTeamByGrp(1, 1), a: getTeamByGrp(2, 1) }
+                ];
+                m4.forEach((m, idx) => updateInitial(`QF-${scatter4[idx]}`, m.h, m.a));
             } else if (numGroups === 4) {
-                updateInitial('QF-1', getTeam(0, 0), getTeam(1, 1));
-                updateInitial('QF-2', getTeam(2, 0), getTeam(3, 1));
-                updateInitial('QF-3', getTeam(1, 0), getTeam(0, 1));
-                updateInitial('QF-4', getTeam(3, 0), getTeam(2, 1));
+                let m4 = [
+                    { h: getTeamByGrp(0, 0), a: getTeamByGrp(1, 1) },
+                    { h: getTeamByGrp(1, 0), a: getTeamByGrp(0, 1) },
+                    { h: getTeamByGrp(2, 0), a: getTeamByGrp(3, 1) },
+                    { h: getTeamByGrp(3, 0), a: getTeamByGrp(2, 1) }
+                ];
+                m4.forEach((m, idx) => updateInitial(`QF-${scatter4[idx]}`, m.h, m.a));
             } else if (numGroups === 6) {
                 let qualifiedThirds = allThirds.slice(0, 4);
-                updateInitial('R16-1', getRankedTeam(allFirsts, 0), getRankedTeam(qualifiedThirds, 3));
-                updateInitial('R16-2', getRankedTeam(allFirsts, 1), getRankedTeam(qualifiedThirds, 2));
-                updateInitial('R16-3', getRankedTeam(allFirsts, 2), getRankedTeam(qualifiedThirds, 1));
-                updateInitial('R16-4', getRankedTeam(allFirsts, 3), getRankedTeam(qualifiedThirds, 0));
-                updateInitial('R16-5', getRankedTeam(allFirsts, 4), getRankedTeam(allSeconds, 5));
-                updateInitial('R16-6', getRankedTeam(allFirsts, 5), getRankedTeam(allSeconds, 4));
-                updateInitial('R16-7', getRankedTeam(allSeconds, 0), getRankedTeam(allSeconds, 3));
-                updateInitial('R16-8', getRankedTeam(allSeconds, 1), getRankedTeam(allSeconds, 2));
+                let m8 = [
+                    { h: getRanked(allFirsts, 0, '1st'), a: getRanked(qualifiedThirds, 3, '3rd') },
+                    { h: getRanked(allFirsts, 1, '1st'), a: getRanked(qualifiedThirds, 2, '3rd') },
+                    { h: getRanked(allFirsts, 2, '1st'), a: getRanked(qualifiedThirds, 1, '3rd') },
+                    { h: getRanked(allFirsts, 3, '1st'), a: getRanked(qualifiedThirds, 0, '3rd') },
+                    { h: getRanked(allFirsts, 4, '1st'), a: getRanked(allSeconds, 5, '2nd') },
+                    { h: getRanked(allFirsts, 5, '1st'), a: getRanked(allSeconds, 4, '2nd') },
+                    { h: getRanked(allSeconds, 0, '2nd'), a: getRanked(allSeconds, 3, '2nd') },
+                    { h: getRanked(allSeconds, 1, '2nd'), a: getRanked(allSeconds, 2, '2nd') }
+                ];
+                m8.forEach((m, idx) => updateInitial(`R16-${scatter8[idx]}`, m.h, m.a));
             } else if (numGroups === 8) {
+                let m8 = [];
                 for (let i = 0; i < 8; i++) {
-                    updateInitial(`R16-${i + 1}`, getTeam(i, 0), getTeam((i + 1) % 8, 1));
+                    m8.push({ h: getTeamByGrp(i, 0), a: getTeamByGrp((i + 1) % 8, 1) });
                 }
+                m8.forEach((m, idx) => updateInitial(`R16-${scatter8[idx]}`, m.h, m.a));
             } else if (numGroups === 12) {
+                let m16 = [];
                 let qualifiedThirds = allThirds.slice(0, 8);
                 for (let i = 0; i < 8; i++) {
-                    updateInitial(`R32-${i + 1}`, getRankedTeam(allFirsts, i), getRankedTeam(qualifiedThirds, 7 - i));
+                    m16.push({ h: getRanked(allFirsts, i, '1st'), a: getRanked(qualifiedThirds, 7 - i, '3rd') });
                 }
                 for (let i = 0; i < 4; i++) {
-                    updateInitial(`R32-${9 + i}`, getRankedTeam(allFirsts, 8 + i), getRankedTeam(allSeconds, 11 - i));
+                    m16.push({ h: getRanked(allFirsts, 8 + i, '1st'), a: getRanked(allSeconds, 11 - i, '2nd') });
                 }
                 for (let i = 0; i < 4; i++) {
-                    updateInitial(`R32-${13 + i}`, getRankedTeam(allSeconds, i), getRankedTeam(allSeconds, 7 - i));
+                    m16.push({ h: getRanked(allSeconds, i, '2nd'), a: getRanked(allSeconds, 7 - i, '2nd') });
                 }
+                m16.forEach((m, idx) => updateInitial(`R32-${scatter16[idx]}`, m.h, m.a));
             }
 
             const phases = [...new Set(b.map(x => x.phase))].sort((a, b) => a - b);
@@ -288,8 +315,8 @@
                             if (isHomeSlot) { if (next.homeTeam !== m.winner) next.homeTeam = m.winner; }
                             else { if (next.awayTeam !== m.winner) next.awayTeam = m.winner; }
                         } else {
-                            if (isHomeSlot) { if (next.homeTeam !== 'TBD') { next.homeTeam = 'TBD'; next.homeScore = null; next.awayScore = null; next.homePen = null; next.awayPen = null; next.winner = null; } }
-                            else { if (next.awayTeam !== 'TBD') { next.awayTeam = 'TBD'; next.homeScore = null; next.awayScore = null; next.homePen = null; next.awayPen = null; next.winner = null; } }
+                            if (isHomeSlot) { if (next.homeTeam !== `Win ${m.id}`) { next.homeTeam = `Win ${m.id}`; next.homeScore = null; next.awayScore = null; next.homePen = null; next.awayPen = null; next.winner = null; } }
+                            else { if (next.awayTeam !== `Win ${m.id}`) { next.awayTeam = `Win ${m.id}`; next.homeScore = null; next.awayScore = null; next.homePen = null; next.awayPen = null; next.winner = null; } }
                         }
                     }
 
@@ -301,8 +328,8 @@
                                 if (m.id === 'SF-1' && nextL.homeTeam !== loser) nextL.homeTeam = loser;
                                 else if (m.id === 'SF-2' && nextL.awayTeam !== loser) nextL.awayTeam = loser;
                             } else {
-                                if (m.id === 'SF-1' && nextL.homeTeam !== 'TBD') { nextL.homeTeam = 'TBD'; nextL.homeScore = null; nextL.awayScore = null; nextL.homePen = null; nextL.awayPen = null; nextL.winner = null; }
-                                else if (m.id === 'SF-2' && nextL.awayTeam !== 'TBD') { nextL.awayTeam = 'TBD'; nextL.homeScore = null; nextL.awayScore = null; nextL.homePen = null; nextL.awayPen = null; nextL.winner = null; }
+                                if (m.id === 'SF-1' && nextL.homeTeam !== `Loser SF-1`) { nextL.homeTeam = `Loser SF-1`; nextL.homeScore = null; nextL.awayScore = null; nextL.homePen = null; nextL.awayPen = null; nextL.winner = null; }
+                                else if (m.id === 'SF-2' && nextL.awayTeam !== `Loser SF-2`) { nextL.awayTeam = `Loser SF-2`; nextL.homeScore = null; nextL.awayScore = null; nextL.homePen = null; nextL.awayPen = null; nextL.winner = null; }
                             }
                         }
                     }
@@ -312,6 +339,30 @@
             return b;
         };
 
+        const WelcomeScreen = ({ onNewCup, onLoadBrowser, onImportClick }) => (
+            <div className="flex-1 flex items-center justify-center p-4 bg-red-700 animate-fade-in relative overflow-hidden w-full min-h-0 h-full absolute inset-0 z-10">
+                <div className="absolute inset-0 z-0 opacity-40 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-red-900 via-red-700 to-red-950"></div>
+                <div className="relative z-10 w-full max-w-sm sm:max-w-md flex flex-col items-center">
+                    <img src="image.png" alt="Logo" className="w-40 h-40 sm:w-48 sm:h-48 mb-6 drop-shadow-2xl object-contain" onError={(e) => { e.target.style.display = 'none'; }} />
+                    <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white uppercase mb-2 text-center drop-shadow-md">Cup Maker</h1>
+                    <p className="text-red-100 font-bold mb-10 text-center text-sm sm:text-base px-4">Create and manage your custom tournaments.</p>
+                    
+                    <div className="w-full flex flex-col gap-4">
+                        <button onClick={onNewCup} className="bg-white hover:bg-gray-100 text-red-700 p-4 rounded-2xl font-black text-lg transition shadow-xl flex items-center justify-center gap-3 w-full">
+                            <Icon name="trophy" className="w-6 h-6" /> New Cup
+                        </button>
+                        <button onClick={onLoadBrowser} className="bg-red-800/60 hover:bg-red-800/90 text-white p-4 rounded-2xl font-bold transition shadow-sm border border-red-700/50 flex items-center justify-center gap-3 w-full">
+                            <Icon name="folder-open" className="w-5 h-5" /> Load from Browser
+                        </button>
+                        <label className="bg-red-800/60 hover:bg-red-800/90 text-white p-4 rounded-2xl font-bold transition shadow-sm border border-red-700/50 flex items-center justify-center gap-3 cursor-pointer w-full">
+                            <Icon name="upload" className="w-5 h-5" /> Import from File
+                            <input type="file" accept=".json" onChange={onImportClick} className="hidden" />
+                        </label>
+                    </div>
+                </div>
+            </div>
+        );
+
         const Modal = ({ title, message, onConfirm, onCancel, confirmText = "Confirm", isAlert = false }) => (
             <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4">
                 <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm animate-fade-in border border-gray-100">
@@ -319,7 +370,7 @@
                     <p className="text-gray-600 mb-6 font-medium text-sm">{message}</p>
                     <div className="flex justify-end gap-3">
                         {!isAlert && <button onClick={onCancel} className="px-4 py-2.5 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition">Cancel</button>}
-                        <button onClick={onConfirm} className={`px-4 py-2.5 rounded-xl font-black text-white transition shadow-sm ${isAlert ? 'bg-indigo-600 hover:bg-indigo-700 w-full' : 'bg-red-600 hover:bg-red-700'}`}>
+                        <button onClick={onConfirm} className={`px-4 py-2.5 rounded-xl font-black text-white transition shadow-sm ${isAlert ? 'bg-red-600 hover:bg-red-700 w-full' : 'bg-red-600 hover:bg-red-700'}`}>
                             {confirmText}
                         </button>
                     </div>
@@ -343,27 +394,27 @@
             const valClass = compact ? 'w-5 h-6 text-xs' : 'w-7 h-8 text-sm';
             
             return (
-                <div className={`flex items-center rounded-lg overflow-hidden shrink-0 ${isPenalty ? 'bg-indigo-100 text-indigo-900' : 'bg-gray-200 text-gray-900'}`}>
-                    <button onClick={handleDec} disabled={disabled} className={`${btnClass} flex items-center justify-center font-black transition ${isPenalty ? 'text-indigo-700 hover:bg-indigo-200' : 'text-gray-700 hover:bg-gray-300'} disabled:opacity-50`}>-</button>
-                    <div className={`${valClass} flex items-center justify-center font-black tabular-nums ${isPenalty ? 'bg-indigo-100 text-indigo-900' : 'bg-gray-200 text-gray-900'}`}>
+                <div className={`flex items-center rounded-lg overflow-hidden shrink-0 ${isPenalty ? 'bg-red-100 text-red-900' : 'bg-gray-200 text-gray-900'}`}>
+                    <button onClick={handleDec} disabled={disabled} className={`${btnClass} flex items-center justify-center font-black transition ${isPenalty ? 'text-red-700 hover:bg-red-200' : 'text-gray-700 hover:bg-gray-300'} disabled:opacity-50`}>-</button>
+                    <div className={`${valClass} flex items-center justify-center font-black tabular-nums ${isPenalty ? 'bg-red-100 text-red-900' : 'bg-gray-200 text-gray-900'}`}>
                         {value === null ? '-' : value}
                     </div>
-                    <button onClick={handleInc} disabled={disabled} className={`${btnClass} flex items-center justify-center font-black transition ${isPenalty ? 'text-indigo-700 hover:bg-indigo-200' : 'text-gray-700 hover:bg-gray-300'} disabled:opacity-50`}>+</button>
+                    <button onClick={handleInc} disabled={disabled} className={`${btnClass} flex items-center justify-center font-black transition ${isPenalty ? 'text-red-700 hover:bg-red-200' : 'text-gray-700 hover:bg-gray-300'} disabled:opacity-50`}>+</button>
                 </div>
             );
         };
 
         const BracketMatchBox = ({ m, updateMatch, readOnly }) => {
             if (!m) return null;
-            const isTbd = m.homeTeam === 'TBD' || m.awayTeam === 'TBD' || m.homeTeam.includes('Grp') || m.homeTeam.includes('Best');
+            const isTbd = isPlaceholder(m.homeTeam) || isPlaceholder(m.awayTeam);
             const isDraw = !isTbd && m.homeScore !== null && m.awayScore !== null && m.homeScore === m.awayScore;
             const isFinal = m.round === 'The Final';
             const isThird = m.round === '3rd Place';
             
             return (
-                <div className={`w-[320px] sm:w-[340px] bg-white border ${m.winner ? 'border-indigo-400 shadow-md ring-1 ring-indigo-100' : 'border-gray-200 shadow-sm'} rounded-xl flex flex-col shrink-0 transition-all relative overflow-hidden my-auto`}>
+                <div className={`w-[320px] sm:w-[340px] bg-white border ${m.winner ? 'border-red-400 shadow-md ring-1 ring-red-100' : 'border-gray-200 shadow-sm'} rounded-xl flex flex-col shrink-0 transition-all relative overflow-hidden my-auto`}>
                     {isFinal && (
-                        <div className="bg-indigo-900 text-white text-[10px] font-black py-1 px-3 text-center tracking-widest uppercase border-b border-indigo-800 shrink-0">
+                        <div className="bg-red-900 text-white text-[10px] font-black py-1 px-3 text-center tracking-widest uppercase border-b border-red-800 shrink-0">
                             THE FINAL
                         </div>
                     )}
@@ -383,34 +434,32 @@
                         </div>
                     )}
                     <div className="p-2 flex flex-col justify-center space-y-1.5 h-full z-0">
-                        {/* Home Team Row */}
                         <div className="bg-gray-50 p-1.5 rounded-lg border border-gray-100 shadow-sm flex items-center justify-between gap-1 h-[46px]">
                             <div className="flex items-center gap-2 min-w-0 pr-1 overflow-hidden flex-1">
                                 {(!isTbd && getFlagUrl(m.homeTeam)) && <img src={getFlagUrl(m.homeTeam)} className="w-5 h-5 object-cover rounded shadow-sm shrink-0" alt=""/>}
-                                <span className={`font-bold truncate text-xs ${m.winner === m.homeTeam ? 'text-indigo-700 font-black' : 'text-gray-700'}`}>{m.homeTeam}</span>
+                                <span className={`font-bold truncate text-xs ${m.winner === m.homeTeam ? 'text-red-700 font-black' : 'text-gray-700'}`}>{m.homeTeam}</span>
                             </div>
                             <div className="flex items-center gap-1.5 shrink-0">
                                 <ValueScroller value={m.homeScore} onChange={(v) => updateMatch(m.id, 'homeScore', v)} disabled={readOnly || isTbd} />
                                 {isDraw && (
-                                    <div className="flex items-center gap-1 bg-indigo-50/80 p-0.5 rounded border border-indigo-100 shadow-inner animate-fade-in">
-                                        <span className="text-[9px] font-black text-indigo-400 pl-1 uppercase">P</span>
+                                    <div className="flex items-center gap-1 bg-red-50/80 p-0.5 rounded border border-red-100 shadow-inner animate-fade-in">
+                                        <span className="text-[9px] font-black text-red-400 pl-1 uppercase">P</span>
                                         <ValueScroller value={m.homePen} onChange={(v) => updateMatch(m.id, 'homePen', v)} disabled={readOnly || isTbd} isPenalty={true} compact={true} />
                                     </div>
                                 )}
                             </div>
                         </div>
 
-                        {/* Away Team Row */}
                         <div className="bg-gray-50 p-1.5 rounded-lg border border-gray-100 shadow-sm flex items-center justify-between gap-1 h-[46px]">
                             <div className="flex items-center gap-2 min-w-0 pr-1 overflow-hidden flex-1">
                                 {(!isTbd && getFlagUrl(m.awayTeam)) && <img src={getFlagUrl(m.awayTeam)} className="w-5 h-5 object-cover rounded shadow-sm shrink-0" alt=""/>}
-                                <span className={`font-bold truncate text-xs ${m.winner === m.awayTeam ? 'text-indigo-700 font-black' : 'text-gray-700'}`}>{m.awayTeam}</span>
+                                <span className={`font-bold truncate text-xs ${m.winner === m.awayTeam ? 'text-red-700 font-black' : 'text-gray-700'}`}>{m.awayTeam}</span>
                             </div>
                             <div className="flex items-center gap-1.5 shrink-0">
                                 <ValueScroller value={m.awayScore} onChange={(v) => updateMatch(m.id, 'awayScore', v)} disabled={readOnly || isTbd} />
                                 {isDraw && (
-                                    <div className="flex items-center gap-1 bg-indigo-50/80 p-0.5 rounded border border-indigo-100 shadow-inner animate-fade-in">
-                                        <span className="text-[9px] font-black text-indigo-400 pl-1 uppercase">P</span>
+                                    <div className="flex items-center gap-1 bg-red-50/80 p-0.5 rounded border border-red-100 shadow-inner animate-fade-in">
+                                        <span className="text-[9px] font-black text-red-400 pl-1 uppercase">P</span>
                                         <ValueScroller value={m.awayPen} onChange={(v) => updateMatch(m.id, 'awayPen', v)} disabled={readOnly || isTbd} isPenalty={true} compact={true} />
                                     </div>
                                 )}
@@ -535,13 +584,13 @@
                         <div className="flex flex-col gap-6">
                             <div>
                                 <label className="text-xs font-black text-gray-500 uppercase tracking-widest mb-2 block">Tournament Name</label>
-                                <input type="text" value={tourneyName} onChange={(e) => setTourneyName(e.target.value)} className="text-2xl font-black text-gray-900 border-b-2 border-gray-200 focus:border-indigo-600 outline-none w-full bg-transparent pb-1 transition" />
+                                <input type="text" value={tourneyName} onChange={(e) => setTourneyName(e.target.value)} className="text-2xl font-black text-gray-900 border-b-2 border-gray-200 focus:border-red-600 outline-none w-full bg-transparent pb-1 transition" />
                             </div>
                             <div>
                                 <label className="text-xs font-black text-gray-500 uppercase tracking-widest mb-2 block">Number of Groups</label>
                                 <div className="grid grid-cols-6 gap-2">
                                     {[2, 3, 4, 6, 8, 12].map(n => (
-                                        <button key={n} onClick={() => { saveState(); setNumGroups(n); setSelectedSlot(null); }} className={`py-2 text-sm font-black rounded-lg transition border ${numGroups === n ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'}`}>{n}</button>
+                                        <button key={n} onClick={() => { saveState(); setNumGroups(n); setSelectedSlot(null); }} className={`py-2 text-sm font-black rounded-lg transition border ${numGroups === n ? 'bg-red-600 text-white border-red-600 shadow-md' : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'}`}>{n}</button>
                                     ))}
                                 </div>
                             </div>
@@ -555,16 +604,16 @@
                             </div>
                             <div className="flex gap-2">
                                 <button onClick={() => { saveState(); setPots(Array(4).fill([])); setSelectedSlot(null); }} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-black text-xs transition shadow-sm border border-gray-200">Clear</button>
-                                <button onClick={autoFillTeams} className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl font-black text-xs transition shadow-sm border border-indigo-200">Complete</button>
+                                <button onClick={autoFillTeams} className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-xl font-black text-xs transition shadow-sm border border-red-200">Complete</button>
                             </div>
                         </div>
 
                         <form onSubmit={handleAddTeams} className="flex gap-3 mb-6">
-                            <input type="text" value={inputTeam} onChange={(e) => setInputTeam(e.target.value)} placeholder="Add teams" className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition" />
+                            <input type="text" value={inputTeam} onChange={(e) => setInputTeam(e.target.value)} placeholder="Add teams" className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-red-500 transition" />
                             <button type="submit" className="bg-gray-900 hover:bg-gray-800 text-white px-6 py-3 rounded-xl font-black shadow-sm transition">Add</button>
                         </form>
                         
-                        {selectedSlot && <div className="text-xs font-bold text-indigo-600 mb-4 bg-indigo-50 p-2 rounded-lg text-center animate-pulse">Tap another team to swap, or tap an empty slot to move.</div>}
+                        {selectedSlot && <div className="text-xs font-bold text-red-600 mb-4 bg-red-50 p-2 rounded-lg text-center animate-pulse">Tap another team to swap, or tap an empty slot to move.</div>}
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {pots.map((pot, idx) => (
@@ -579,7 +628,7 @@
                                             return (
                                             <div key={tIdx} 
                                                  onClick={() => handleSlotClick(idx, tIdx)}
-                                                 className={`bg-white border rounded-lg px-2 py-1.5 text-xs font-bold text-gray-700 flex items-center justify-between shadow-sm group cursor-pointer transition ${isSelected ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-gray-200 hover:border-indigo-300'}`}>
+                                                 className={`bg-white border rounded-lg px-2 py-1.5 text-xs font-bold text-gray-700 flex items-center justify-between shadow-sm group cursor-pointer transition ${isSelected ? 'border-red-500 ring-2 ring-red-200' : 'border-gray-200 hover:border-red-300'}`}>
                                                 <div className="flex items-center gap-1.5 flex-1 min-w-0 pr-1">
                                                     {getFlagUrl(team) && <img src={getFlagUrl(team)} className="w-4 h-4 object-cover rounded shadow-sm shrink-0" alt=""/>}
                                                     <span className="truncate">{team}</span>
@@ -587,7 +636,7 @@
                                                 <button type="button" onClick={(e) => {
                                                     e.stopPropagation(); saveState();
                                                     let newPots = [...pots.map(p => [...p])]; newPots[idx].splice(tIdx, 1); setPots(newPots); setSelectedSlot(null);
-                                                }} className="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition shrink-0 ml-1">
+                                                }} className="text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition shrink-0 ml-1">
                                                     <Icon name="x" className="w-3.5 h-3.5" />
                                                 </button>
                                             </div>
@@ -596,7 +645,7 @@
                                         {pot.length < numGroups && Array.from({ length: numGroups - pot.length }).map((_, i) => (
                                             <div key={`empty-${i}`} 
                                                  onClick={() => handleEmptySlotClick(idx)}
-                                                 className={`border border-dashed rounded-lg px-2 py-1.5 text-xs font-bold flex items-center justify-center cursor-pointer transition ${selectedSlot ? 'border-indigo-400 bg-indigo-50/50 text-indigo-500 hover:bg-indigo-100' : 'border-gray-300 text-gray-400 bg-gray-50/50'}`}>Empty Slot</div>
+                                                 className={`border border-dashed rounded-lg px-2 py-1.5 text-xs font-bold flex items-center justify-center cursor-pointer transition ${selectedSlot ? 'border-red-400 bg-red-50/50 text-red-500 hover:bg-red-100' : 'border-gray-300 text-gray-400 bg-gray-50/50'}`}>Empty Slot</div>
                                         ))}
                                     </div>
                                 </div>
@@ -604,17 +653,17 @@
                         </div>
                     </div>
 
-                    <div className="bg-indigo-900 rounded-2xl p-6 shadow-lg border border-indigo-800 text-center flex flex-col items-center">
-                        <label className="text-[10px] font-black text-indigo-300 uppercase tracking-widest mb-3">Draw Speed</label>
-                        <div className="flex w-full max-w-sm bg-indigo-950 p-1 rounded-xl shadow-inner mb-6 border border-indigo-800/50">
+                    <div className="bg-red-900 rounded-2xl p-6 shadow-lg border border-red-800 text-center flex flex-col items-center">
+                        <label className="text-[10px] font-black text-red-300 uppercase tracking-widest mb-3">Draw Speed</label>
+                        <div className="flex w-full max-w-sm bg-red-950 p-1 rounded-xl shadow-inner mb-6 border border-red-800/50">
                             {[{ l: 'Instant', v: 0 }, { l: 'Fast', v: 100 }, { l: 'Normal', v: 400 }, { l: 'Slow', v: 1000 }].map(s => (
-                                <button key={s.v} type="button" onClick={() => setDrawSpeed(s.v)} className={`flex-1 py-2 text-[10px] font-black rounded-lg transition ${Number(drawSpeed) === s.v ? 'bg-indigo-600 text-white shadow-md' : 'text-indigo-400 hover:text-indigo-200'}`}>
+                                <button key={s.v} type="button" onClick={() => setDrawSpeed(s.v)} className={`flex-1 py-2 text-[10px] font-black rounded-lg transition ${Number(drawSpeed) === s.v ? 'bg-red-600 text-white shadow-md' : 'text-red-400 hover:text-red-200'}`}>
                                     {s.l}
                                 </button>
                             ))}
                         </div>
                         <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md justify-center">
-                            <button onClick={skipDrawAndFill} className="flex-1 bg-indigo-800 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-black shadow-md transition border border-indigo-600">Fill Manually</button>
+                            <button onClick={skipDrawAndFill} className="flex-1 bg-red-800 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-black shadow-md transition border border-red-600">Fill Manually</button>
                             <button onClick={startLiveDraw} className="flex-1 bg-green-500 hover:bg-green-400 text-white px-6 py-3 rounded-xl font-black shadow-md transition transform hover:scale-105">Start Draw</button>
                         </div>
                     </div>
@@ -730,7 +779,7 @@
                     <div className="grid grid-cols-2 gap-3 w-full">
                         {liveGroups.map((g, idx) => (
                             <div key={idx} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
-                                <div className="bg-gray-900 text-white py-1.5 text-center text-[10px] font-black tracking-widest border-b-2 border-indigo-500">GROUP {String.fromCharCode(65 + idx)}</div>
+                                <div className="bg-gray-900 text-white py-1.5 text-center text-[10px] font-black tracking-widest border-b-2 border-red-500">GROUP {String.fromCharCode(65 + idx)}</div>
                                 <div className="flex-1 p-2 flex flex-col justify-between space-y-1">
                                     {[0, 1, 2, 3].map(pos => {
                                         const isDrawingThis = currentPotIndex === pos && !drawComplete && Number(drawSpeed) !== 0;
@@ -744,7 +793,7 @@
                                                 ) : (
                                                     <div className="w-full h-full flex items-center justify-center opacity-30">
                                                         {isDrawingThis ? (
-                                                            <div className="w-3.5 h-3.5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                                                            <div className="w-3.5 h-3.5 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
                                                         ) : <span className="text-[10px] font-bold">---</span>}
                                                     </div>
                                                 )}
@@ -759,7 +808,7 @@
             );
         };
 
-        const GroupStage = ({ groups, matches, setMatches, numGroups, saveState }) => {
+        const GroupStage = ({ groups, matches, setMatches, numGroups, saveState, tourneyName, setTourneyName }) => {
             const [expandedGroups, setExpandedGroups] = useState({});
             
             const toggleGroup = (label) => {
@@ -794,13 +843,18 @@
             return (
                 <div className="max-w-7xl mx-auto space-y-6 pb-20 w-full animate-fade-in pt-4">
                     <div className="flex flex-col sm:flex-row justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-gray-200 gap-4">
-                        <div className="flex items-center gap-3">
-                            <h2 className="text-xl font-black text-gray-900 tracking-tight uppercase">Group Stage</h2>
+                        <div className="flex items-center gap-3 w-full sm:w-auto">
+                            <input 
+                                type="text" 
+                                value={tourneyName} 
+                                onChange={(e) => setTourneyName(e.target.value)} 
+                                className="text-xl font-black text-gray-900 tracking-tight uppercase border-b-2 border-transparent focus:border-red-600 outline-none bg-transparent hover:bg-gray-50 transition px-2 py-1 w-full sm:w-64"
+                            />
                         </div>
                         <div className="flex flex-wrap gap-2 justify-center">
                             <button onClick={expandAll} className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-xl font-bold text-xs transition shadow-sm border border-gray-200">Expand All</button>
                             <button onClick={collapseAll} className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-xl font-bold text-xs transition shadow-sm border border-gray-200">Collapse All</button>
-                            <button onClick={autoFillScores} className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-4 py-2 rounded-xl font-bold text-xs transition shadow-sm border border-indigo-200">Auto-Fill Missing</button>
+                            <button onClick={autoFillScores} className="bg-red-50 hover:bg-red-100 text-red-700 px-4 py-2 rounded-xl font-bold text-xs transition shadow-sm border border-red-200">Auto-Fill Missing</button>
                         </div>
                     </div>
 
@@ -822,7 +876,7 @@
                                                 <tr>
                                                     <th className="px-3 py-2 w-8">#</th>
                                                     <th className="px-2 py-2">Team</th>
-                                                    <th className="px-2 py-2 text-center font-bold text-indigo-700 bg-indigo-50">Pts</th>
+                                                    <th className="px-2 py-2 text-center font-bold text-red-700 bg-red-50">Pts</th>
                                                     <th className="px-2 py-2 text-center">P</th>
                                                     <th className="px-2 py-2 text-center">W</th>
                                                     <th className="px-2 py-2 text-center">D</th>
@@ -838,7 +892,7 @@
                                                             {getFlagUrl(st.team) && <img src={getFlagUrl(st.team)} className="w-4 h-4 rounded-sm shadow-sm shrink-0 object-cover" alt=""/>}
                                                             <span className="truncate">{st.team}</span>
                                                         </td>
-                                                        <td className="px-2 py-2.5 text-center font-black text-indigo-700 bg-indigo-50/50">{st.pts}</td>
+                                                        <td className="px-2 py-2.5 text-center font-black text-red-700 bg-red-50/50">{st.pts}</td>
                                                         <td className="px-2 py-2.5 text-center text-gray-600">{st.p}</td>
                                                         <td className="px-2 py-2.5 text-center text-gray-600">{st.w}</td>
                                                         <td className="px-2 py-2.5 text-center text-gray-600">{st.d}</td>
@@ -863,7 +917,7 @@
                                                                 <div key={m.id} className={`bg-white rounded-lg p-2 border shadow-sm ${isEmpty ? 'border-red-400 ring-1 ring-red-100' : 'border-gray-200'}`}>
                                                                     <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1 w-full">
                                                                         <div className="flex items-center gap-1 justify-end min-w-0 pr-1">
-                                                                            <span className={`truncate text-xs font-bold text-right ${(m.homeScore !== null && Number(m.homeScore) > Number(m.awayScore)) ? 'text-indigo-700' : 'text-gray-700'}`}>{getAbbr(m.homeTeam)}</span>
+                                                                            <span className={`truncate text-xs font-bold text-right ${(m.homeScore !== null && Number(m.homeScore) > Number(m.awayScore)) ? 'text-red-700' : 'text-gray-700'}`}>{getAbbr(m.homeTeam)}</span>
                                                                             {getFlagUrl(m.homeTeam) && <img src={getFlagUrl(m.homeTeam)} className="w-4 h-4 shrink-0 object-cover rounded-sm border border-gray-100" alt=""/>}
                                                                         </div>
                                                                         
@@ -875,7 +929,7 @@
                                                                         
                                                                         <div className="flex items-center gap-1 justify-start min-w-0 pl-1">
                                                                             {getFlagUrl(m.awayTeam) && <img src={getFlagUrl(m.awayTeam)} className="w-4 h-4 shrink-0 object-cover rounded-sm border border-gray-100" alt=""/>}
-                                                                            <span className={`truncate text-xs font-bold text-left ${(m.awayScore !== null && Number(m.awayScore) > Number(m.homeScore)) ? 'text-indigo-700' : 'text-gray-700'}`}>{getAbbr(m.awayTeam)}</span>
+                                                                            <span className={`truncate text-xs font-bold text-left ${(m.awayScore !== null && Number(m.awayScore) > Number(m.homeScore)) ? 'text-red-700' : 'text-gray-700'}`}>{getAbbr(m.awayTeam)}</span>
                                                                         </div>
                                                                     </div>
                                                                 </div>
@@ -894,7 +948,7 @@
             );
         };
 
-        const KnockoutStage = ({ groups, matches, numGroups, bracket, setBracket, saveState, setView, setAlertData, tourneyName }) => {
+        const KnockoutStage = ({ groups, matches, numGroups, bracket, setBracket, saveState, setView, setAlertData, tourneyName, setTourneyName, tournamentId }) => {
             const isGroupStageComplete = matches.every(m => m.homeScore !== null && m.awayScore !== null);
             const syncedBracket = useMemo(() => syncBracketWithGroups(groups, matches, numGroups, bracket), [groups, matches, numGroups, bracket]);
 
@@ -916,12 +970,20 @@
                 let finalM = syncedBracket.find(x => x.id === 'FIN');
                 let thirdM = syncedBracket.find(x => x.id === '3RD');
                 let hist = {
-                    id: Date.now(), name: tourneyName,
+                    id: tournamentId, name: tourneyName,
                     champion: finalM.winner, runnerUp: finalM.winner === finalM.homeTeam ? finalM.awayTeam : finalM.homeTeam,
                     third: thirdM?.winner || 'N/A', bracket: syncedBracket, groups, matches, numGroups
                 };
-                const existing = JSON.parse(localStorage.getItem('soccer_hall_of_fame') || '[]');
-                localStorage.setItem('soccer_hall_of_fame', JSON.stringify([hist, ...existing]));
+                let existing = JSON.parse(localStorage.getItem('soccer_hall_of_fame') || '[]');
+                const existingIndex = existing.findIndex(h => h.id === tournamentId);
+                
+                if (existingIndex !== -1) {
+                    existing[existingIndex] = hist;
+                } else {
+                    existing = [hist, ...existing]; 
+                }
+                
+                localStorage.setItem('soccer_hall_of_fame', JSON.stringify(existing));
                 setAlertData({ title: "Tournament Complete!", message: `${finalM.winner} is the Champion! Saved to Hall of Fame.` });
                 setView('hall-of-fame');
             };
@@ -948,6 +1010,17 @@
             
             return (
                 <div className="flex flex-col flex-1 min-h-0 w-full relative bg-[#0f172a] overflow-hidden rounded-xl shadow-inner border-4 border-gray-800">
+                    <div className="flex flex-col sm:flex-row justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-gray-200 gap-4 m-4 shrink-0">
+                        <div className="flex items-center gap-3 w-full sm:w-auto">
+                            <input 
+                                type="text" 
+                                value={tourneyName} 
+                                onChange={(e) => setTourneyName(e.target.value)} 
+                                className="text-xl font-black text-gray-900 tracking-tight uppercase border-b-2 border-transparent focus:border-red-600 outline-none bg-transparent hover:bg-gray-50 transition px-2 py-1 w-full sm:w-64"
+                            />
+                        </div>
+                    </div>
+
                     {!isGroupStageComplete && (
                         <div className="bg-amber-400 text-amber-900 py-2 text-xs font-black text-center shadow-md flex items-center justify-center gap-2 mb-2 w-full shrink-0">
                             <Icon name="lock" className="w-4 h-4" /> Complete Group Stage matches to unlock knockout scoring.
@@ -1027,8 +1100,8 @@
                                         </h3>
                                         <div className="flex flex-col justify-around flex-1 w-full gap-4">
                                             {colMatches.map(m => {
-                                                const isTbdH = m.homeTeam === 'TBD' || m.homeTeam.includes('Grp') || m.homeTeam.includes('Best');
-                                                const isTbdA = m.awayTeam === 'TBD' || m.awayTeam.includes('Grp') || m.awayTeam.includes('Best');
+                                                const isTbdH = isPlaceholder(m.homeTeam);
+                                                const isTbdA = isPlaceholder(m.awayTeam);
                                                 return (
                                                     <div key={m.id} className="flex justify-center items-center relative w-full h-[120px] shrink-0">
                                                         <div className="bg-white/10 border border-slate-700 rounded-xl p-3 flex flex-col gap-2 shadow-sm w-full">
@@ -1058,15 +1131,15 @@
             );
         };
 
-        const HallOfFame = ({ setView }) => {
-            const history = JSON.parse(localStorage.getItem('soccer_hall_of_fame') || '[]');
+        const HallOfFame = ({ setView, setConfirmData }) => {
+            const [history, setHistory] = useState(() => JSON.parse(localStorage.getItem('soccer_hall_of_fame') || '[]'));
             const [selectedArchive, setSelectedArchive] = useState(null);
 
             const teamStats = useMemo(() => {
                 let stats = {};
                 history.forEach(h => {
                     const addStat = (team, pos) => {
-                        if (!team || team === 'TBD' || team === 'N/A') return;
+                        if (!team || isPlaceholder(team) || team === 'N/A') return;
                         if (!stats[team]) stats[team] = { team, first: 0, second: 0, third: 0, total: 0 };
                         if (pos === 1) stats[team].first++;
                         if (pos === 2) stats[team].second++;
@@ -1080,12 +1153,42 @@
                 return Object.values(stats).sort((a, b) => b.first - a.first || b.second - a.second || b.third - a.third || b.total - a.total);
             }, [history]);
 
+            const handleDeleteEdition = (id, e) => {
+                e.stopPropagation();
+                setConfirmData({
+                    title: "Delete Edition",
+                    message: "Are you sure you want to delete this tournament from the Hall of Fame?",
+                    onConfirm: () => {
+                        const newHistory = history.filter(h => h.id !== id);
+                        localStorage.setItem('soccer_hall_of_fame', JSON.stringify(newHistory));
+                        setHistory(newHistory);
+                        setConfirmData(null);
+                        if (selectedArchive && selectedArchive.id === id) {
+                            setSelectedArchive(null);
+                        }
+                    }
+                });
+            };
+
+            const handleResetHoF = () => {
+                setConfirmData({
+                    title: "Reset Hall of Fame",
+                    message: "Are you sure you want to permanently delete ALL Hall of Fame records? This cannot be undone.",
+                    onConfirm: () => {
+                        localStorage.removeItem('soccer_hall_of_fame');
+                        setHistory([]);
+                        setConfirmData(null);
+                        setSelectedArchive(null);
+                    }
+                });
+            };
+
             if (history.length === 0) return <div className="flex flex-col items-center justify-center h-64 text-gray-400 font-black text-lg gap-3"><Icon name="award" className="w-12 h-12 opacity-50" />No records found in Hall of Fame.</div>;
             
             if (selectedArchive) {
                 return (
                     <div className="max-w-4xl mx-auto p-4 animate-fade-in pb-12 w-full pt-4">
-                        <button onClick={() => setSelectedArchive(null)} className="mb-4 flex items-center gap-2 text-indigo-600 font-bold hover:text-indigo-800 transition text-sm bg-white px-4 py-2 rounded-xl border border-indigo-100 shadow-sm"><Icon name="arrow-left" className="w-4 h-4"/> Back to Index</button>
+                        <button onClick={() => setSelectedArchive(null)} className="mb-4 flex items-center gap-2 text-red-600 font-bold hover:text-red-800 transition text-sm bg-white px-4 py-2 rounded-xl border border-red-100 shadow-sm"><Icon name="arrow-left" className="w-4 h-4"/> Back to Index</button>
                         <div className="bg-white p-6 rounded-2xl shadow border border-gray-200">
                             <h2 className="text-2xl font-black text-gray-900 mb-1">{selectedArchive.name}</h2>
                             <p className="text-gray-400 font-bold uppercase tracking-widest text-xs mb-6">Archive Format: {selectedArchive.numGroups} Groups</p>
@@ -1115,8 +1218,12 @@
             return (
                 <div className="max-w-3xl mx-auto p-4 space-y-8 animate-fade-in pb-12 w-full pt-4">
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-                        <div className="bg-gray-900 p-4">
+                        <div className="bg-gray-900 p-4 flex justify-between items-center">
                             <h2 className="text-lg font-black text-white uppercase tracking-widest">Champions per Edition</h2>
+                            <button onClick={handleResetHoF} className="bg-red-500/20 hover:bg-red-500/40 text-red-400 hover:text-red-300 px-3 py-1.5 rounded-lg font-black text-xs transition border border-red-500/30 flex items-center gap-1.5 shadow-sm">
+                                <Icon name="trash" className="w-3.5 h-3.5" />
+                                Reset All
+                            </button>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-left text-sm">
@@ -1125,6 +1232,7 @@
                                         <th className="px-4 py-3 w-20">Edition</th>
                                         <th className="px-4 py-3">Tournament Name</th>
                                         <th className="px-4 py-3 text-center">Champion</th>
+                                        <th className="px-4 py-3 w-12 text-center"></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -1132,13 +1240,18 @@
                                         <tr key={h.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition">
                                             <td className="px-4 py-3 font-black text-gray-400">#{history.length - i}</td>
                                             <td className="px-4 py-3">
-                                                <button onClick={() => setSelectedArchive(h)} className="font-black text-indigo-600 hover:text-indigo-800 hover:underline text-sm text-left transition">{h.name}</button>
+                                                <button onClick={() => setSelectedArchive(h)} className="font-black text-red-600 hover:text-red-800 hover:underline text-sm text-left transition">{h.name}</button>
                                             </td>
                                             <td className="px-4 py-3 text-center">
                                                 <div className="inline-flex items-center gap-1.5 bg-amber-100/50 text-amber-900 px-3 py-1.5 rounded-lg font-black text-xs shadow-sm border border-amber-200">
                                                     {getFlagUrl(h.champion) && <img src={getFlagUrl(h.champion)} className="w-4 h-4 rounded shadow-sm object-cover" alt=""/>}
                                                     {h.champion} 🏆
                                                 </div>
+                                            </td>
+                                            <td className="px-4 py-3 text-center">
+                                                <button onClick={(e) => handleDeleteEdition(h.id, e)} className="text-gray-400 hover:text-red-500 transition-colors p-1.5 bg-white hover:bg-red-50 rounded-lg border border-transparent hover:border-red-200 shadow-sm" title="Delete Edition">
+                                                    <Icon name="trash" className="w-4 h-4" />
+                                                </button>
                                             </td>
                                         </tr>
                                     ))}
@@ -1172,7 +1285,7 @@
                                             <td className="px-3 py-3 text-center font-black text-amber-600">{st.first}</td>
                                             <td className="px-3 py-3 text-center font-bold text-slate-600">{st.second}</td>
                                             <td className="px-3 py-3 text-center font-bold text-orange-600">{st.third}</td>
-                                            <td className="px-3 py-3 text-center font-black text-indigo-600">{st.total}</td>
+                                            <td className="px-3 py-3 text-center font-black text-red-600">{st.total}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -1184,8 +1297,9 @@
         };
 
         const App = () => {
-            const [view, setView] = useState('setup'); 
+            const [view, setView] = useState('welcome'); 
             const [tab, setTab] = useState('groups'); 
+            const [tournamentId, setTournamentId] = useState(() => Date.now());
             const [tourneyName, setTourneyName] = useState("World Cup");
             const [numGroups, setNumGroups] = useState(4);
             const [pots, setPots] = useState([[], [], [], []]);
@@ -1202,12 +1316,13 @@
             useEffect(() => { window.scrollTo({ top: 0, left: 0, behavior: 'instant' }); }, [view, tab]);
 
             const saveState = () => {
-                setAppHistory(prev => [...prev.slice(-15), JSON.stringify({ tourneyName, numGroups, pots, groups, matches, bracket, view, tab, drawSpeed })]);
+                setAppHistory(prev => [...prev.slice(-15), JSON.stringify({ tournamentId, tourneyName, numGroups, pots, groups, matches, bracket, view, tab, drawSpeed })]);
             };
 
             const undo = () => {
                 if (appHistory.length === 0) return;
                 const prevState = JSON.parse(appHistory[appHistory.length - 1]);
+                if (prevState.tournamentId) setTournamentId(prevState.tournamentId);
                 setTourneyName(prevState.tourneyName); setNumGroups(prevState.numGroups);
                 setPots(prevState.pots); setGroups(prevState.groups); setMatches(prevState.matches);
                 setBracket(prevState.bracket); setView(prevState.view); setTab(prevState.tab);
@@ -1217,7 +1332,7 @@
             };
 
             const handleExportJSON = () => {
-                const data = JSON.stringify({ tourneyName, numGroups, groups, matches, bracket, pots, view, tab });
+                const data = JSON.stringify({ tournamentId, tourneyName, numGroups, groups, matches, bracket, pots, view, tab });
                 const blob = new Blob([data], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -1229,28 +1344,36 @@
             const handleImportJSON = (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
-                setConfirmData({
-                    title: "Load JSON File",
-                    message: "This will overwrite your current tournament data. Proceed?",
-                    onConfirm: () => {
-                        const reader = new FileReader();
-                        reader.onload = (e) => {
-                            try {
-                                const p = JSON.parse(e.target.result);
-                                if (p.groups) setGroups(p.groups);
-                                if (p.matches) setMatches(p.matches);
-                                if (p.bracket) setBracket(p.bracket);
-                                if (p.pots) setPots(p.pots);
-                                if (p.tourneyName) setTourneyName(p.tourneyName);
-                                if (p.numGroups) setNumGroups(p.numGroups);
-                                setView(p.groups?.length > 0 ? 'tournament' : 'setup'); setTab('groups');
-                            } catch (err) { setAlertData({ title: "Error", message: "Invalid JSON backup file." }); }
-                        };
-                        reader.readAsText(file);
-                        setConfirmData(null); setMenuOpen(false);
-                        e.target.value = null; 
-                    }
-                });
+                
+                const doImport = () => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const p = JSON.parse(e.target.result);
+                            if (p.tournamentId) setTournamentId(p.tournamentId); else setTournamentId(Date.now());
+                            if (p.groups) setGroups(p.groups);
+                            if (p.matches) setMatches(p.matches);
+                            if (p.bracket) setBracket(p.bracket);
+                            if (p.pots) setPots(p.pots);
+                            if (p.tourneyName) setTourneyName(p.tourneyName);
+                            if (p.numGroups) setNumGroups(p.numGroups);
+                            setView(p.groups?.length > 0 ? 'tournament' : 'setup'); setTab('groups');
+                        } catch (err) { setAlertData({ title: "Error", message: "Invalid JSON backup file." }); }
+                    };
+                    reader.readAsText(file);
+                    setConfirmData(null); setMenuOpen(false);
+                };
+
+                if (view === 'welcome') {
+                    doImport();
+                } else {
+                    setConfirmData({
+                        title: "Load JSON File",
+                        message: "This will overwrite your current tournament data. Proceed?",
+                        onConfirm: doImport
+                    });
+                }
+                e.target.value = null; 
             };
 
             const saveToBrowser = () => {
@@ -1258,7 +1381,7 @@
                     title: "Save Session",
                     message: "This will overwrite any previously saved session. Are you sure you want to proceed?",
                     onConfirm: () => {
-                        localStorage.setItem('soccer_manager_save', JSON.stringify({ tourneyName, numGroups, pots, groups, matches, bracket, view, tab }));
+                        localStorage.setItem('soccer_manager_save', JSON.stringify({ tournamentId, tourneyName, numGroups, pots, groups, matches, bracket, view, tab }));
                         setAlertData({ title: "Saved", message: "Tournament saved to your browser." });
                         setConfirmData(null);
                         setMenuOpen(false);
@@ -1270,24 +1393,31 @@
                 const saved = localStorage.getItem('soccer_manager_save');
                 if (!saved) { setAlertData({ title: "No Save Found", message: "There is no tournament data saved in this browser." }); return; }
                 
-                setConfirmData({
-                    title: "Load Session",
-                    message: "Overwrite current session with saved data?",
-                    onConfirm: () => {
-                        try {
-                            const p = JSON.parse(saved);
-                            if (p.pots) setPots(p.pots);
-                            if (p.groups) setGroups(p.groups);
-                            if (p.matches) setMatches(p.matches);
-                            if (p.bracket) setBracket(p.bracket);
-                            if (p.tourneyName) setTourneyName(p.tourneyName);
-                            if (p.numGroups) setNumGroups(p.numGroups);
-                            if (p.view) setView(p.view);
-                            if (p.tab) setTab(p.tab);
-                        } catch (err) { setAlertData({ title: "Error", message: "Corrupted save file." }); }
-                        setConfirmData(null); setMenuOpen(false);
-                    }
-                });
+                const doLoad = () => {
+                    try {
+                        const p = JSON.parse(saved);
+                        if (p.tournamentId) setTournamentId(p.tournamentId); else setTournamentId(Date.now());
+                        if (p.pots) setPots(p.pots);
+                        if (p.groups) setGroups(p.groups);
+                        if (p.matches) setMatches(p.matches);
+                        if (p.bracket) setBracket(p.bracket);
+                        if (p.tourneyName) setTourneyName(p.tourneyName);
+                        if (p.numGroups) setNumGroups(p.numGroups);
+                        if (p.view && p.view !== 'welcome') setView(p.view); else setView(p.groups?.length > 0 ? 'tournament' : 'setup');
+                        if (p.tab) setTab(p.tab);
+                    } catch (err) { setAlertData({ title: "Error", message: "Corrupted save file." }); }
+                    setConfirmData(null); setMenuOpen(false);
+                };
+
+                if (view === 'welcome') {
+                    doLoad();
+                } else {
+                    setConfirmData({
+                        title: "Load Session",
+                        message: "Overwrite current session with saved data?",
+                        onConfirm: doLoad
+                    });
+                }
             };
 
             const resetApp = () => {
@@ -1296,6 +1426,7 @@
                     message: "Completely erase current tournament?",
                     onConfirm: () => {
                         saveState();
+                        setTournamentId(Date.now());
                         setView('setup'); setGroups([]); setMatches([]); setBracket([]);
                         setPots(Array(4).fill([]));
                         setConfirmData(null); setMenuOpen(false);
@@ -1310,15 +1441,15 @@
                     {alertData && <Modal title={alertData.title} message={alertData.message} onConfirm={() => setAlertData(null)} confirmText="OK" isAlert={true} />}
                     {confirmData && <Modal title={confirmData.title} message={confirmData.message} onConfirm={confirmData.onConfirm} onCancel={() => setConfirmData(null)} />}
 
-                    <header className="bg-gray-900 text-white shadow-md relative z-40 shrink-0">
+                    <header className="bg-red-700 text-white shadow-md relative z-40 shrink-0">
                         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
                             <div className="flex items-center gap-2.5">
-                                <img src="image_2.png" className="w-8 h-8 object-contain" alt="Logo" onError={(e) => { e.target.style.display = 'none'; }}/>
+                                <img src="image.png" className="w-10 h-10 object-contain drop-shadow-md" alt="Logo" onError={(e) => { e.target.style.display = 'none'; }}/>
                                 <h1 className="text-base font-black tracking-tight text-white uppercase">The OC'S Cup Maker</h1>
                             </div>
                             
                             <div className="relative">
-                                <button onClick={() => setMenuOpen(!menuOpen)} className={`p-2 rounded-lg transition ${menuOpen ? 'bg-indigo-600' : 'hover:bg-gray-800'}`}>
+                                <button onClick={() => setMenuOpen(!menuOpen)} className={`p-2 rounded-lg transition ${menuOpen ? 'bg-red-600' : 'hover:bg-red-800'}`}>
                                     <Icon name="menu" className="w-5 h-5" />
                                 </button>
                                 
@@ -1329,15 +1460,16 @@
                                         
                                         {groups.length > 0 && (
                                             <>
-                                                <button onClick={() => { setView('tournament'); setTab('groups'); setMenuOpen(false); }} className="w-full text-left px-4 py-2.5 hover:bg-gray-50 font-black text-xs flex items-center gap-2.5 text-indigo-700"><Icon name="trophy" className="w-4 h-4 text-indigo-500" /> Tournament</button>
-                                                <button onClick={() => { setView('road-to-final-diagram'); setMenuOpen(false); }} className="w-full text-left px-4 py-2.5 hover:bg-gray-50 font-black text-xs flex items-center gap-2.5 text-indigo-700"><Icon name="award" className="w-4 h-4 text-indigo-500" /> Road to Final</button>
+                                                <button onClick={() => { setView('tournament'); setTab('groups'); setMenuOpen(false); }} className="w-full text-left px-4 py-2.5 hover:bg-red-50 font-black text-xs flex items-center gap-2.5 text-red-700"><Icon name="trophy" className="w-4 h-4 text-red-500" /> Group Stage</button>
+                                                <button onClick={() => { setView('tournament'); setTab('knockout'); setMenuOpen(false); }} className="w-full text-left px-4 py-2.5 hover:bg-red-50 font-black text-xs flex items-center gap-2.5 text-red-700"><Icon name="award" className="w-4 h-4 text-red-500" /> Knockout Stage</button>
+                                                <button onClick={() => { setView('road-to-final-diagram'); setMenuOpen(false); }} className="w-full text-left px-4 py-2.5 hover:bg-red-50 font-black text-xs flex items-center gap-2.5 text-red-700"><Icon name="award" className="w-4 h-4 text-red-500" /> Road to Final</button>
                                             </>
                                         )}
                                         <button onClick={() => { setView('hall-of-fame'); setMenuOpen(false); }} className="w-full text-left px-4 py-2.5 hover:bg-gray-50 font-black text-xs flex items-center gap-2.5 text-gray-700"><Icon name="award" className="w-4 h-4 text-amber-500" /> Hall of Fame</button>
                                         
                                         <div className="border-t border-gray-100 my-1 mx-3"></div>
-                                        <button onClick={saveToBrowser} className="w-full text-left px-4 py-2 hover:bg-indigo-50 font-black text-xs flex items-center gap-2.5 text-indigo-700"><Icon name="save" className="w-4 h-4 text-indigo-400" /> Save Session</button>
-                                        <button onClick={loadFromBrowser} className="w-full text-left px-4 py-2 hover:bg-indigo-50 font-black text-xs flex items-center gap-2.5 text-indigo-700"><Icon name="folder-open" className="w-4 h-4 text-indigo-400" /> Load Session</button>
+                                        <button onClick={saveToBrowser} className="w-full text-left px-4 py-2 hover:bg-red-50 font-black text-xs flex items-center gap-2.5 text-red-700"><Icon name="save" className="w-4 h-4 text-red-400" /> Save Session</button>
+                                        <button onClick={loadFromBrowser} className="w-full text-left px-4 py-2 hover:bg-red-50 font-black text-xs flex items-center gap-2.5 text-red-700"><Icon name="folder-open" className="w-4 h-4 text-red-400" /> Load Session</button>
 
                                         <div className="border-t border-gray-100 my-1 mx-3"></div>
                                         <button onClick={handleExportJSON} className="w-full text-left px-4 py-2 hover:bg-gray-50 font-black text-xs flex items-center gap-2.5 text-gray-700"><Icon name="download" className="w-4 h-4 text-gray-400" /> Export JSON</button>
@@ -1357,13 +1489,16 @@
                     {isLocked && (
                         <div className="bg-white border-b border-gray-200 shadow-sm relative shrink-0 z-20">
                             <div className="max-w-7xl mx-auto flex">
-                                <button onClick={() => { setView('tournament'); setTab('groups'); }} className={`flex-1 py-3 text-xs font-black uppercase tracking-widest transition border-b-4 ${view === 'tournament' && tab === 'groups' ? 'border-indigo-600 text-indigo-700 bg-indigo-50/50' : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50'}`}>Group Stage</button>
-                                <button onClick={() => { setView('tournament'); setTab('knockout'); }} className={`flex-1 py-3 text-xs font-black uppercase tracking-widest transition border-b-4 ${view === 'tournament' && tab === 'knockout' ? 'border-indigo-600 text-indigo-700 bg-indigo-50/50' : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50'}`}>Knockout</button>
+                                <button onClick={() => { setView('tournament'); setTab('groups'); }} className={`flex-1 py-3 text-xs font-black uppercase tracking-widest transition border-b-4 ${view === 'tournament' && tab === 'groups' ? 'border-red-600 text-red-700 bg-red-50/50' : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50'}`}>Group Stage</button>
+                                <button onClick={() => { setView('tournament'); setTab('knockout'); }} className={`flex-1 py-3 text-xs font-black uppercase tracking-widest transition border-b-4 ${view === 'tournament' && tab === 'knockout' ? 'border-red-600 text-red-700 bg-red-50/50' : 'border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50'}`}>Knockout</button>
                             </div>
                         </div>
                     )}
 
                     <main className="flex-1 p-2 sm:p-4 flex flex-col relative min-h-0 w-full overflow-y-auto">
+                        {view === 'welcome' && (
+                            <WelcomeScreen onNewCup={() => { setTournamentId(Date.now()); setView('setup'); }} onLoadBrowser={loadFromBrowser} onImportClick={handleImportJSON} />
+                        )}
                         {view === 'setup' && (
                             <SetupPhase 
                                 tourneyName={tourneyName} setTourneyName={setTourneyName} 
@@ -1384,20 +1519,20 @@
                         {view === 'tournament' && tab === 'groups' && (
                             <GroupStage 
                                 groups={groups} matches={matches} setMatches={setMatches} 
-                                numGroups={numGroups} saveState={saveState}
+                                numGroups={numGroups} saveState={saveState} tourneyName={tourneyName} setTourneyName={setTourneyName}
                             />
                         )}
                         {view === 'tournament' && tab === 'knockout' && (
                             <KnockoutStage 
                                 groups={groups} matches={matches} numGroups={numGroups} 
                                 bracket={bracket} setBracket={setBracket} saveState={saveState} 
-                                setView={setView} setAlertData={setAlertData} tourneyName={tourneyName}
+                                setView={setView} setAlertData={setAlertData} tourneyName={tourneyName} setTourneyName={setTourneyName} tournamentId={tournamentId}
                             />
                         )}
                         {view === 'road-to-final-diagram' && (
                             <RoadToFinalDiagram numGroups={numGroups} bracket={bracket} groups={groups} matches={matches} />
                         )}
-                        {view === 'hall-of-fame' && <HallOfFame setView={setView} />}
+                        {view === 'hall-of-fame' && <HallOfFame setView={setView} setConfirmData={setConfirmData} />}
                     </main>
                 </div>
             );
